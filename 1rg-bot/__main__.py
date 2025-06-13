@@ -2,10 +2,12 @@ from typing import Union
 import discord
 import os
 
+from .bluesky import BlueskyPoster
+
 TARGET_EMOJI = "📤"
-TARGET_COUNT = 1  # TODO
+TARGET_COUNT = 1  # TODO: increase eventually
 YES_EMOJI = "✅"
-NO_EMOJI = "❌"
+MAX_LENGTH = 300  # Bluesky limit
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -14,8 +16,9 @@ intents.members = True
 
 client = discord.Client(intents=intents)
 
+bsky = BlueskyPoster()
 
-waiting_dms = []
+waiting_dms = {}  # Map DM ids to server Message
 
 
 @client.event
@@ -27,22 +30,16 @@ async def on_ready():
 async def on_reaction_add(
     reaction: discord.Reaction, user: Union[discord.Member, discord.User]
 ):
-    print(reaction, user)
-
     # Ignore reactions from the bot itself
     if user == client.user:
         return
 
     if reaction.message.id in waiting_dms:
         # A user has reacted to the DM request to post
-        if str(reaction.emoji) == NO_EMOJI:
-            await user.send("Ok.")
-            waiting_dms.remove(reaction.message.id)
-            return
         if str(reaction.emoji) == YES_EMOJI:
-            # TODO: make the post
-            await user.send("Thanks!")
-            waiting_dms.remove(reaction.message.id)
+            bsky.post(waiting_dms[reaction.message.id])
+            # await user.send("Thanks!")
+            del waiting_dms[reaction.message.id]
             return
 
         # User reacted with some other emoji, just ignore this
@@ -54,16 +51,19 @@ async def on_reaction_add(
         return
     if reaction.count < TARGET_COUNT:
         return
+    if len(reaction.message.content) > MAX_LENGTH:
+        return
 
     # DM user to confirm they want it posted
-    dm_content = "Are you okay with your msg being posted publicly to a 1RG account? Click an emoji reaction.\n"
-    dm_content += f"Message: {reaction.message.jump_url}"
-    dm_msg = await reaction.message.author.send(dm_content)
-    waiting_dms.append(dm_msg.id)  # Track it for when the user reacts
+    dm_content = "Are you okay with your msg being posted publicly to a [1RG account](https://bsky.app/profile/overheard.1rg.space)?"
+    dm_content += " Click the check if so."
+    # SIKE: it's a reply, not a DM
+    dm_msg = await reaction.message.reply(dm_content, suppress_embeds=True)
+    # Track it for when the user reacts
+    waiting_dms[dm_msg.id] = reaction.message
 
     # Add reactions for the user to click
     await dm_msg.add_reaction(YES_EMOJI)
-    await dm_msg.add_reaction(NO_EMOJI)
 
     # Once the user reacts, this function will be triggered again
 
