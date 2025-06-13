@@ -8,7 +8,9 @@ import re
 class BlueskyPoster:
     def __init__(self) -> None:
         self.client = Client()
-        self.client.login("overheard.1rg.space", os.environ["BLUESKY_APP_PASSWORD"])
+        self.client.login(
+            os.environ["BLUESKY_USERNAME"], os.environ["BLUESKY_APP_PASSWORD"]
+        )
 
     def _extract_url_byte_positions(
         self, text: str, *, encoding: str = "UTF-8"

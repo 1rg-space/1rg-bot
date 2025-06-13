@@ -1,3 +1,4 @@
 # Notes
 
-- [ ] Reply instead of DM
+- [ ] Mastodon support
+- [ ] Bluesky images

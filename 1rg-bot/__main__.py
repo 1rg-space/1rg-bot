@@ -1,8 +1,11 @@
 from typing import Union
 import discord
 import os
+from dotenv import load_dotenv
 
 from .bluesky import BlueskyPoster
+
+load_dotenv()
 
 TARGET_EMOJI = "📤"
 TARGET_COUNT = 1  # TODO: increase eventually
