@@ -47,7 +47,7 @@ async def on_reaction_add(
 
         if str(reaction.emoji) == YES_EMOJI:
             # They consented to post the msg
-            url = bsky.post(waiting_dms[reaction.message])
+            url = await bsky.post(waiting_dms[reaction.message])
             await reaction.message.edit(
                 content=reaction.message.content + f"\nEdit: [posted]({url})",
                 suppress=True,

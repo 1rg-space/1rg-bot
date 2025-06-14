@@ -31,9 +31,9 @@ class BlueskyPoster:
 
         return url_byte_positions
 
-    def post(self, message: discord.Message) -> str:
+    def _get_url_facets(self, text: str):
         # Determine locations of URLs in the post's text
-        url_positions = self._extract_url_byte_positions(message.clean_content)
+        url_positions = self._extract_url_byte_positions(text)
         facets = []
 
         for link_data in url_positions:
@@ -47,10 +47,9 @@ class BlueskyPoster:
                 )
             )
 
-        response = self.client.send_post(
-            message.clean_content, facets=facets if facets else None
-        )
+        return facets if facets else None
 
+    def _url_from_response(self, response):
         # Construct the post URL
         # The response contains the post's AT URI, we need to convert it to a web URL
         post_uri = response.uri
@@ -62,3 +61,72 @@ class BlueskyPoster:
 
         # Convert to web URL format
         return f"https://bsky.app/profile/{did}/post/{record_key}"
+
+    async def post(self, message: discord.Message) -> str:
+        if len(message.attachments) == 0:
+            response = self.client.send_post(
+                message.clean_content,
+                facets=self._get_url_facets(message.clean_content),
+            )
+            return self._url_from_response(response)
+
+        media_type = message.attachments[0].content_type
+        if not media_type:
+            # Idk why this would happen
+            # Just post the text
+            response = self.client.send_post(
+                message.clean_content,
+                facets=self._get_url_facets(message.clean_content),
+            )
+            return self._url_from_response(response)
+
+        if media_type.startswith("video/"):
+            # Post the video and ignore possible other attachments
+            vid_data = await message.attachments[0].read()
+            response = self.client.send_video(
+                message.clean_content,
+                vid_data,
+                facets=self._get_url_facets(message.clean_content),
+                video_aspect_ratio=models.AppBskyEmbedDefs.AspectRatio(
+                    height=message.attachments[0].height,  # type: ignore
+                    width=message.attachments[0].width,  # type: ignore
+                ),
+            )
+            return self._url_from_response(response)
+
+        if media_type.startswith("image/"):
+            # Send up to 4 images
+            images = []
+            image_aspect_ratios = []
+            for attachment in message.attachments:
+                if attachment.content_type and attachment.content_type.startswith(
+                    "image/"
+                ):
+                    images.append(await attachment.read())
+                    image_aspect_ratios.append(
+                        models.AppBskyEmbedDefs.AspectRatio(
+                            height=attachment.height,  # type: ignore
+                            width=attachment.width,  # type: ignore
+                        )
+                    )
+                if len(images) == 4:
+                    break
+
+            response = self.client.send_images(
+                message.clean_content,
+                images,
+                facets=self._get_url_facets(message.clean_content),
+                image_aspect_ratios=image_aspect_ratios,
+            )
+            return self._url_from_response(response)
+
+        # Some other kind of attachment, like a PDF
+        # Ignore it and just post the message text
+        # Another option would be to post the link to the file
+        # But that would change the post length and could invalidate it,
+        # so let's not for now.
+        response = self.client.send_post(
+            message.clean_content,
+            facets=self._get_url_facets(message.clean_content),
+        )
+        return self._url_from_response(response)
