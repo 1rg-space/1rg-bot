@@ -70,6 +70,12 @@ async def on_reaction_add(
     if len(reaction.message.clean_content) > MAX_LENGTH:
         return
 
+    if reaction.message in waiting_dms.values():
+        # A user added the target emoji to a msg that the bot has already sent
+        # a confirmation msg for. So just ignore it
+        # This prevents repeated confirmation msgs
+        return
+
     if client.user in [user async for user in reaction.users()]:
         # The bot has already posted this
         # It reacting to the post is a marker of this
