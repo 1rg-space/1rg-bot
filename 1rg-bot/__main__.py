@@ -67,8 +67,6 @@ async def on_reaction_add(
         return
     if reaction.count < TARGET_COUNT:
         return
-    if len(reaction.message.clean_content) > MAX_LENGTH:
-        return
 
     if reaction.message in waiting_dms.values():
         # A user added the target emoji to a msg that the bot has already sent
@@ -80,6 +78,14 @@ async def on_reaction_add(
         # The bot has already posted this
         # It reacting to the post is a marker of this
         # So stop processing to prevent double-posting
+        return
+
+    if len(reaction.message.content) > MAX_LENGTH:
+        # The message is too long to post on Bluesky
+        await reaction.message.reply(
+            f"❌ This message is too long to post on Bluesky.",
+            suppress_embeds=True,
+        )
         return
 
     # DM user to confirm they want it posted
