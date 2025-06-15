@@ -1,4 +1,4 @@
-from typing import Union
+from typing import List, Union
 import discord
 import os
 from dotenv import load_dotenv
@@ -23,6 +23,9 @@ bsky = BlueskyPoster()
 
 # Map confirmation Message to server Message
 waiting_dms: dict[discord.Message, discord.Message] = {}
+
+# Keep track of msgs (their IDs) that are too long to prevent double notifying
+too_long_msgs: List[int] = []
 
 
 @client.event
@@ -81,11 +84,12 @@ async def on_reaction_add(
         return
 
     if len(reaction.message.content) > MAX_LENGTH:
-        # The message is too long to post on Bluesky
-        await reaction.message.reply(
-            f"❌ This message is too long to post on Bluesky.",
-            suppress_embeds=True,
-        )
+        if reaction.message.id not in too_long_msgs:
+            await reaction.message.reply(
+                "❌ This message is too long to post on Bluesky.",
+                suppress_embeds=True,
+            )
+            too_long_msgs.append(reaction.message.id)
         return
 
     # DM user to confirm they want it posted
