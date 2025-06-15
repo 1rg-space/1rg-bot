@@ -1,4 +1,4 @@
-from typing import Union
+from typing import List, Union
 import discord
 import os
 from dotenv import load_dotenv
@@ -23,6 +23,9 @@ bsky = BlueskyPoster()
 
 # Map confirmation Message to server Message
 waiting_dms: dict[discord.Message, discord.Message] = {}
+
+# Keep track of msgs (their IDs) that are too long to prevent double notifying
+too_long_msgs: List[int] = []
 
 
 @client.event
@@ -67,8 +70,6 @@ async def on_reaction_add(
         return
     if reaction.count < TARGET_COUNT:
         return
-    if len(reaction.message.clean_content) > MAX_LENGTH:
-        return
 
     if reaction.message in waiting_dms.values():
         # A user added the target emoji to a msg that the bot has already sent
@@ -80,6 +81,15 @@ async def on_reaction_add(
         # The bot has already posted this
         # It reacting to the post is a marker of this
         # So stop processing to prevent double-posting
+        return
+
+    if len(reaction.message.content) > MAX_LENGTH:
+        if reaction.message.id not in too_long_msgs:
+            await reaction.message.reply(
+                "❌ This message is too long to post on Bluesky.",
+                suppress_embeds=True,
+            )
+            too_long_msgs.append(reaction.message.id)
         return
 
     # DM user to confirm they want it posted
