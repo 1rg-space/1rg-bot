@@ -50,9 +50,18 @@ async def on_reaction_add(
 
         if str(reaction.emoji) == YES_EMOJI:
             # They consented to post the msg
-            url = await bsky.post(waiting_dms[reaction.message])
+            try:
+                url = await bsky.post(waiting_dms[reaction.message])
+                edit_text = f"\nEdit: [posted]({url})"
+            except Exception as e:
+                print(e)
+                try:
+                    edit_text = f"\nEdit: `{e.response.content.message}` 🙁"  # type: ignore
+                except AttributeError:
+                    edit_text = f"\nEdit: `{e}` 🙁"
+
             await reaction.message.edit(
-                content=reaction.message.content + f"\nEdit: [posted]({url})",
+                content=reaction.message.content + edit_text,
                 suppress=True,
             )
             # Mark message as posted so it won't be double posted
