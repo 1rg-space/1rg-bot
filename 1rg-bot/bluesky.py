@@ -3,9 +3,15 @@ from atproto import Client, models
 import os
 import typing as t
 import re
+import io
+import math
+from PIL import Image
 
 
 class BlueskyPoster:
+    IMAGE_MAX_SIZE = 1000000  # 1 MB
+    IMAGE_MAX_RESOLUTION = 2000  # px
+
     def __init__(self) -> None:
         self.client = Client()
         self.client.login(
@@ -102,7 +108,12 @@ class BlueskyPoster:
                 if attachment.content_type and attachment.content_type.startswith(
                     "image/"
                 ):
-                    images.append(await attachment.read())
+                    img = await attachment.read()
+                    print(attachment.size)
+                    if attachment.size > self.IMAGE_MAX_SIZE:
+                        print("compressing...")
+                        img = self.compressImage(img)
+                    images.append(img)
                     image_aspect_ratios.append(
                         models.AppBskyEmbedDefs.AspectRatio(
                             height=attachment.height,  # type: ignore
@@ -130,3 +141,46 @@ class BlueskyPoster:
             facets=self._get_url_facets(message.clean_content),
         )
         return self._url_from_response(response)
+
+    def compressImage(self, img_bytes: bytes) -> bytes:
+        """Save the image as JPEG with the given name at best quality that makes less than "target" bytes"""
+
+        # Adapted from https://stackoverflow.com/a/52281257/7361270
+
+        im = Image.open(io.BytesIO(img_bytes))
+
+        # First resize image to see if that's good enough
+        buffer = io.BytesIO()
+        im.thumbnail((self.IMAGE_MAX_RESOLUTION, self.IMAGE_MAX_RESOLUTION))
+        im.save(buffer, format="JPEG", quality=96)
+        if buffer.getbuffer().nbytes <= self.IMAGE_MAX_SIZE:
+            return buffer.getvalue()
+
+        # Min and Max quality
+        Qmin, Qmax = 25, 96
+        # Highest acceptable quality found
+        Qacc = -1
+
+        while Qmin <= Qmax:
+            m = math.floor((Qmin + Qmax) / 2)
+
+            # Encode into memory and get size
+            buffer = io.BytesIO()
+            im.save(buffer, format="JPEG", quality=m)
+            s = buffer.getbuffer().nbytes
+            print(s, Qmin, Qmax, m)
+
+            if s <= self.IMAGE_MAX_SIZE:
+                Qacc = m
+                Qmin = m + 1
+            elif s > self.IMAGE_MAX_SIZE:
+                Qmax = m - 1
+
+            print(Qacc)
+
+        if Qacc > -1:
+            buffer = io.BytesIO()
+            im.save(buffer, format="JPEG", quality=Qacc)
+            return buffer.getvalue()
+
+        raise Exception("unable to compress image")

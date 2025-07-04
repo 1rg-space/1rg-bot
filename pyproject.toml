@@ -6,5 +6,6 @@ requires-python = ">=3.13"
 dependencies = [
     "atproto>=0.0.61",
     "discord-py>=2.5.2",
+    "pillow>=11.3.0",
     "python-dotenv>=1.1.0",
 ]
