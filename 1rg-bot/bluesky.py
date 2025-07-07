@@ -109,9 +109,7 @@ class BlueskyPoster:
                     "image/"
                 ):
                     img = await attachment.read()
-                    print(attachment.size)
                     if attachment.size > self.IMAGE_MAX_SIZE:
-                        print("compressing...")
                         img = self.compressImage(img)
                     images.append(img)
                     image_aspect_ratios.append(
@@ -168,15 +166,12 @@ class BlueskyPoster:
             buffer = io.BytesIO()
             im.save(buffer, format="JPEG", quality=m)
             s = buffer.getbuffer().nbytes
-            print(s, Qmin, Qmax, m)
 
             if s <= self.IMAGE_MAX_SIZE:
                 Qacc = m
                 Qmin = m + 1
             elif s > self.IMAGE_MAX_SIZE:
                 Qmax = m - 1
-
-            print(Qacc)
 
         if Qacc > -1:
             buffer = io.BytesIO()
