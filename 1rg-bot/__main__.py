@@ -1,6 +1,7 @@
 from typing import List, Union
 import discord
 import os
+import traceback
 from dotenv import load_dotenv
 
 from .bluesky import BlueskyPoster
@@ -54,7 +55,7 @@ async def on_reaction_add(
                 url = await bsky.post(waiting_dms[reaction.message])
                 edit_text = f"\nEdit: [posted]({url})"
             except Exception as e:
-                print(e)
+                print(traceback.format_exc())
                 try:
                     edit_text = f"\nEdit: `{e.response.content.message}` 🙁"  # type: ignore
                 except AttributeError:
