@@ -146,6 +146,10 @@ class BlueskyPoster:
         # Adapted from https://stackoverflow.com/a/52281257/7361270
 
         im = Image.open(io.BytesIO(img_bytes))
+        if im.mode in ("RGBA", "P"):
+            # PNG file, remove alpha to allow for future quality reduction
+            # TODO: this doesn't support images with actual transparent parts
+            im = im.convert("RGB")
 
         # First resize image to see if that's good enough
         buffer = io.BytesIO()
